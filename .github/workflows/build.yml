@@ -1,4 +1,4 @@
-name: 构建并发布APK
+name: 构建、自动生成签名、发布Release
 
 on:
   push:
@@ -18,11 +18,40 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: 赋予执行权限
+      - name: 赋予权限
         run: chmod +x gradlew
 
-      - name: 构建APK
+      # 👇 这一步直接在 GitHub 服务器里生成 keystore，不需要你任何工具
+      - name: 自动生成签名密钥
+        run: |
+          keytool -genkey -v -keystore keystore.jks \
+          -alias mykey \
+          -keyalg RSA -keysize 2048 -validity 36500 \
+          -storepass 123456 \
+          -keypass 123456 \
+          -dname "CN=Android Debug,O=Android,C=US"
+
+      # 👇 把密钥转成 Base64（就是你要的 SIGNING_KEY）
+      - name: 转成 Base64 并输出
+        run: |
+          base64 -w 0 keystore.jks > keystore.b64
+          echo "======== 下面这一长串就是你的 SIGNING_KEY ========"
+          cat keystore.b64
+
+      - name: 编译
         run: ./gradlew assembleRelease
+
+      # 👇 自动签名
+      - name: 在线签名APK
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: 上传APK
         uses: actions/upload-artifact@v4
@@ -39,18 +68,18 @@ jobs:
           name: apk
           path: apks
 
-      - name: 设置时间版本号
+      - name: 设置时间版本
         id: build_time
         run: |
-          echo "tag=build-$(date -u +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+          echo "tag=build-$(date -u +'%Y%m%d-%H%M%S')" >> $GITHOM_OUTPUT
           echo "name=自动构建 $(date -u +'%Y年%m月%d日 %H:%M')" >> $GITHUB_OUTPUT
 
-      - name: 创建Release
+      - name: 发布Release
         uses: softprops/action-gh-release@v2
         with:
           files: apks/*.apk
           tag_name: ${{ steps.build_time.outputs.tag }}
           name: ${{ steps.build_time.outputs.name }}
-          body: 手机端自动构建，无签名
+          body: 自动构建+自动签名
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
