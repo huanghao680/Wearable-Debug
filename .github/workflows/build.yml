@@ -1,4 +1,4 @@
-name: 构建、自动生成签名、发布Release
+name: 构建签名APK + 北京时间自动发布
 
 on:
   push:
@@ -10,39 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+      - run: chmod +x gradlew
+      - run: ./gradlew assembleRelease
 
-      - name: 赋予权限
-        run: chmod +x gradlew
-
-      # 👇 这一步直接在 GitHub 服务器里生成 keystore，不需要你任何工具
-      - name: 自动生成签名密钥
-        run: |
-          keytool -genkey -v -keystore keystore.jks \
-          -alias mykey \
-          -keyalg RSA -keysize 2048 -validity 36500 \
-          -storepass 123456 \
-          -keypass 123456 \
-          -dname "CN=Android Debug,O=Android,C=US"
-
-      # 👇 把密钥转成 Base64（就是你要的 SIGNING_KEY）
-      - name: 转成 Base64 并输出
-        run: |
-          base64 -w 0 keystore.jks > keystore.b64
-          echo "======== 下面这一长串就是你的 SIGNING_KEY ========"
-          cat keystore.b64
-
-      - name: 编译
-        run: ./gradlew assembleRelease
-
-      # 👇 自动签名
-      - name: 在线签名APK
+      - name: 签名APK
         uses: r0adkll/sign-android-release@v1
         with:
           releaseDirectory: app/build/outputs/apk/release
@@ -53,11 +29,11 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "34.0.0"
 
-      - name: 上传APK
+      - name: 上传签名APK
         uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/*-signed.apk
 
   release:
     needs: build
@@ -68,11 +44,11 @@ jobs:
           name: apk
           path: apks
 
-      - name: 设置时间版本
+      - name: 设置北京时间版本号
         id: build_time
         run: |
-          echo "tag=build-$(date -u +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
-          echo "name=自动构建 $(date -u +'%Y年%m月%d日 %H:%M')" >> $GITHUB_OUTPUT
+          echo "tag=build-$(date -d '+8 hour' +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
+          echo "name=自动构建 $(date -d '+8 hour' +'%Y年%m月%d日 %H:%M')" >> "$GITHUB_OUTPUT"
 
       - name: 发布Release
         uses: softprops/action-gh-release@v2
@@ -80,6 +56,6 @@ jobs:
           files: apks/*.apk
           tag_name: ${{ steps.build_time.outputs.tag }}
           name: ${{ steps.build_time.outputs.name }}
-          body: 自动构建+自动签名
+          body: 已签名可直接安装 | 北京时间构建
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
