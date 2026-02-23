@@ -71,7 +71,7 @@ jobs:
       - name: 设置时间版本
         id: build_time
         run: |
-          echo "tag=build-$(date -u +'%Y%m%d-%H%M%S')" >> $GITHOM_OUTPUT
+          echo "tag=build-$(date -u +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
           echo "name=自动构建 $(date -u +'%Y年%m月%d日 %H:%M')" >> $GITHUB_OUTPUT
 
       - name: 发布Release
