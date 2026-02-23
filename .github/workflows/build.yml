@@ -22,7 +22,7 @@ jobs:
       - name: 构建APK
         run: ./gradlew assembleRelease
 
-      - name: 签名（用回最兼容的插件，不折腾新插件）
+      - name: 签名APK
         uses: r0adkll/sign-android-release@v1
         with:
           releaseDirectory: app/build/outputs/apk/release
