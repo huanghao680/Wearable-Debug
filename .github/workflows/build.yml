@@ -17,13 +17,16 @@ jobs:
           distribution: temurin
           cache: gradle
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - run: chmod +x gradlew
       - run: ./gradlew assembleRelease
 
-      - name: 签名APK（现代插件，无set-output警告）
+      - name: 签名APK
         uses: ilharp/sign-android-release@v1
         with:
-          dir: app/build/outputs/apk/release
+          releaseDir: app/build/outputs/apk/release
           signingKey: ${{ secrets.SIGNING_KEY }}
           keyAlias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
