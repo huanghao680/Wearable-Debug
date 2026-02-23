@@ -17,22 +17,23 @@ jobs:
           distribution: temurin
           cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - run: chmod +x gradlew
-      - run: ./gradlew assembleRelease
 
-      - name: 签名APK
-        uses: ilharp/sign-android-release@v1
+      - name: 构建APK
+        run: ./gradlew assembleRelease
+
+      - name: 签名（用回最兼容的插件，不折腾新插件）
+        uses: r0adkll/sign-android-release@v1
         with:
-          releaseDir: app/build/outputs/apk/release
-          signingKey: ${{ secrets.SIGNING_KEY }}
-          keyAlias: ${{ secrets.ALIAS }}
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
 
-      - name: 上传APK
+      - name: 上传签名APK
         uses: actions/upload-artifact@v4
         with:
           name: apk
@@ -47,7 +48,7 @@ jobs:
           name: apk
           path: apks
 
-      - name: 生成北京时间版本
+      - name: 北京时间版本号
         id: build_time
         run: |
           echo "tag=build-$(date -d '+8 hour' +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
